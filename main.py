@@ -139,7 +139,7 @@ def main():
 
 
         # Slot for use to upload xlsx file
-        xlsx_data = st.file_uploader(f'Upload file from excel here. Required columns to show trend: {required_cols}', type=['Excel'])
+        xlsx_data = st.file_uploader(f'Upload file from excel here. Required columns to show trend: {required_cols}', type=['xlsx'])
         if xlsx_data is not None:
             df = pd.read_excel(xlsx_data)
         else:
