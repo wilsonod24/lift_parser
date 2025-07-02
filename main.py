@@ -72,40 +72,89 @@ def plot_interactive(df: pd.DataFrame):
     # Plot the data to the streamlit front end
     st.plotly_chart(fig)
 
+def clean_df(df: pd.DataFrame):
+    """Strips and sets all column names to lowercase"""
+    col_names = []  # To hold the column names
+
+    # Add each column name (Stripped and lowercase) to the new column names list
+    for col in df.columns:
+        col_names.append(col.strip().lower())
+
+    # replace the column names with new ones
+    df.columns = col_names
+    return df
+
 def main():
-    # Have the user upload the file
-    file = st.file_uploader('Upload workout log: see sample below for formatting', type=['txt','csv'])
 
-    # Sample to show formatting
-    st.text('Example formatting for parsing:'.title())  
-    st.dataframe(pd.read_csv('push_data.txt').head())   
-        
-    # Convert the dataframe
-    converted_df = convert_dataframe(file)
+    # Create left and right columns
+    left, right = st.columns(2)
+    if "left_btn" not in st.session_state:
+        st.session_state.left_btn = False
+    if "right_btn" not in st.session_state:
+        st.session_state.right_btn = False
 
-    required_cols = ['date', 'reps', 'weight_lbs']
+    # To Convert from CSV to Excel
+    with left:
+        if st.button('Convert CSV or TXT file into an excel workout'):
+            st.session_state.left_btn=True
+            st.session_state.right_btn=False
 
-    all_exist = all(col in converted_df.columns for col in required_cols)
-    if all_exist:
-        # Plot the data
-        plot_interactive(converted_df)
+    if st.session_state.left_btn:
+        # Have the user upload the file from csv
+        csv_file = st.file_uploader('Upload CSV here to for excel conversions', type=['txt','csv'])
 
-    # Display the converted DF
-    st.dataframe(converted_df)
+        # Sample to show formatting
+        sample_data = pd.read_csv('push_data.txt')
+        st.header('Sample formatting for CSV & TXT files')
+        st.text(body=sample_data.iloc[:, 0])     
 
-    # Allow user to download converted DF as xlsx file
-    if not converted_df.empty:
+        # When pressed allows user to download xlsx file
+        if st.button('Convert CSV data to Excel'):
+
+            # Convert the dataframe from csv
+            converted_df = convert_dataframe(csv_file)
+
+            # Allow user to download converted DF as xlsx file
+            if not converted_df.empty:
+                sheet_name = 'Workout Excel Data'
+                excel_data = export(converted_df, sname=sheet_name)
+
+                # Download button for the user to export the data
+                st.download_button(
+                    label="Download Excel file",
+                    data=excel_data,
+                    file_name="workout_data.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+
+    # Allow user to visualize progress from Excel file
+    with right:
+        if st.button('Display progress from Excel (xlsx) file'):
+            st.session_state.right_btn = True
+            st.session_state.left_btn = False
+
+    if st.session_state.right_btn:
+        # Required columns to make the data visualization
+        required_cols = ['date', 'reps', 'weight_lbs']
 
 
-        sheet_name = 'Workout Excel Data'
-        excel_data = export(converted_df, sname=sheet_name)
+        # Slot for use to upload xlsx file
+        xlsx_data = st.file_uploader(f'Upload file from excel here. Required columns to show trend: {required_cols}', type=['Excel'])
+        if xlsx_data is not None:
+            df = pd.read_excel(xlsx_data)
+        else:
+            df = pd.DataFrame()
 
-        # Download button for the user to export the data
-        st.download_button(
-            label="Download Excel file",
-            data=excel_data,
-            file_name="workout_data.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        # Convert df to lowercase columns and strip column names
+        df = clean_df(df)
+
+        # When pressed displays graph of currently uploaded data
+        if st.button('View Progress over time from excel file'):
+            # Check whether all required columns exist
+            all_exist = all(col in df.columns for col in required_cols)
+            if all_exist:
+                # Plot the data
+                plot_interactive(df)
+
 
 main()    
